@@ -1,4 +1,5 @@
 import json
+import csv
 import logging
 import os
 import time
@@ -151,29 +152,30 @@ class NMExtension(Extension):
                 sleep(int(self.preferences["rescan_wait"]))
                 last_scan = time_now
 
-            wifis = os.popen('nmcli -t device wifi list').read().rstrip()
-            wifis = wifis.split("\n")
+            wifis = os.popen("nmcli -t device wifi list").read().rstrip()
+            if len(wifis) > 0:
+                wifis = wifis.split("\n")
+                wifis = csv.reader(wifis, delimiter=":", escapechar="\\")
 
-            for w in wifis:
-                wifi = w.split(":")
-                name = wifi[1]
-                speed = wifi[4]
-                signal = wifi[5]
-                security = wifi[7]
-                if int(signal) > 70:
-                    icon = "wifi-n3"
-                if (int(signal) > 30) and (int(signal) < 70):
-                    icon = "wifi-n2"
-                if int(signal) < 30:
-                    icon = "wifi-n1"
-                profiles[name] = name
+                for wifi in wifis:
+                    name = wifi[2]
+                    speed = wifi[4]
+                    signal = int(wifi[6])
+                    security = wifi[8]
+                    if signal > 70:
+                        icon = "wifi-n3"
+                    if (signal > 30) and (signal < 70):
+                        icon = "wifi-n2"
+                    if signal < 30:
+                        icon = "wifi-n1"
+                    profiles[name] = name
 
-                desc = "Speed: %s, Security: %s, Signal: %s" % (speed, security, signal)
+                    desc = "Speed: %s, Security: %s, Signal: %s" % (speed, security, signal)
 
-                if (query in name.lower()) or (query in desc.lower()):
-                    items_cache.append(create_item(name, desc, icon, {"mod": "wifi", "name": name}))
+                    if (query in name.lower()) or (query in desc.lower()):
+                        items_cache.append(create_item(name, desc, icon, {"mod": "wifi", "name": name}))
         except Exception as e:
-            logger.error("Failed to get WIFI networks")
+            logger.error("Failed to get WIFI networks\n\n%s", "".join(traceback.format_exception(e)))
 
         items_cache = sorted(items_cache, key=sort_by_usage, reverse=True)
         return items_cache
